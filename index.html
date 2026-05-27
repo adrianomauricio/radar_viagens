@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Radar de Passagens — MT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #06080f;
+  --bg2: #0d1120;
+  --bg3: #141826;
+  --border: rgba(99,179,255,0.12);
+  --border2: rgba(99,179,255,0.22);
+  --accent: #3b9eff;
+  --accent2: #00e5a0;
+  --accent3: #ff5f5f;
+  --amber: #ffb347;
+  --text: #e8edf5;
+  --muted: #7a8499;
+  --card: #0f1624;
+  --mono: 'Space Mono', monospace;
+  --sans: 'Sora', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* GRID BG */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(59,158,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,158,255,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* RADAR RING DECORATION */
+.radar-deco {
+  position: fixed;
+  top: -200px; right: -200px;
+  width: 600px; height: 600px;
+  border-radius: 50%;
+  border: 1px solid rgba(59,158,255,0.06);
+  pointer-events: none;
+  z-index: 0;
+}
+.radar-deco::before, .radar-deco::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(59,158,255,0.05);
+  inset: 80px;
+}
+.radar-deco::after { inset: 160px; }
+
+.wrapper { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px 60px; }
+
+/* HEADER */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32px 0 28px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.brand-icon {
+  width: 44px; height: 44px;
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg3);
+  position: relative;
+  overflow: hidden;
+}
+.brand-icon svg { width: 22px; height: 22px; }
+.radar-sweep {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 70%, rgba(59,158,255,0.4) 100%);
+  animation: sweep 3s linear infinite;
+  transform-origin: center;
+}
+@keyframes sweep { to { transform: rotate(360deg); } }
+.brand-text h1 {
+  font-size: 18px; font-weight: 600; letter-spacing: -0.3px; line-height: 1;
+}
+.brand-text p { font-size: 12px; color: var(--muted); font-family: var(--mono); margin-top: 3px; }
+.live-chip {
+  display: flex; align-items: center; gap: 7px;
+  font-family: var(--mono); font-size: 11px;
+  color: var(--accent2);
+  border: 1px solid rgba(0,229,160,0.2);
+  padding: 5px 12px; border-radius: 20px;
+  background: rgba(0,229,160,0.05);
+}
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); animation: blink 1.4s ease-in-out infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+/* CONTROLS */
+.controls-bar {
+  display: flex;
+  gap: 10px;
+  padding: 20px 0 0;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.ctrl-label { font-size: 11px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-right: 4px; }
+
+select {
+  background: var(--bg3);
+  color: var(--text);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-family: var(--sans);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+select:hover, select:focus { border-color: var(--accent); }
+
+.btn-scan {
+  display: flex; align-items: center; gap: 7px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-family: var(--sans);
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+  margin-left: auto;
+}
+.btn-scan:hover { opacity: 0.88; }
+.btn-scan:active { transform: scale(0.97); }
+.btn-scan svg { width: 15px; height: 15px; }
+.spin { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* STATS ROW */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin: 20px 0;
+}
+.stat {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.stat-lbl { font-size: 11px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+.stat-val { font-size: 22px; font-weight: 600; font-family: var(--mono); color: var(--text); line-height: 1; }
+.stat-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.stat-val.green { color: var(--accent2); }
+.stat-val.blue { color: var(--accent); }
+
+/* FILTER TABS */
+.filter-row {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.ftab {
+  font-size: 12px; font-family: var(--mono);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 12px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--muted);
+  transition: all 0.15s;
+}
+.ftab:hover { border-color: var(--border2); color: var(--text); }
+.ftab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* CARDS GRID */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s, background 0.2s;
+  position: relative;
+  overflow: hidden;
+  animation: fadeIn 0.3s ease both;
+}
+@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+.card:hover { border-color: var(--border2); transform: translateY(-2px); background: #111928; }
+.card.hot { border-color: rgba(0,229,160,0.35); }
+.card.hot::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent2), transparent);
+}
+.card.promo { border-color: rgba(59,158,255,0.3); }
+.card.promo::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+
+.card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.card-dest h3 { font-size: 15px; font-weight: 600; line-height: 1.1; }
+.card-dest span { font-size: 11px; font-family: var(--mono); color: var(--muted); }
+
+.badge {
+  font-size: 10px; font-family: var(--mono); font-weight: 700;
+  padding: 3px 8px; border-radius: 4px;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+.badge-fire { background: rgba(0,229,160,0.12); color: var(--accent2); border: 1px solid rgba(0,229,160,0.25); }
+.badge-promo { background: rgba(59,158,255,0.1); color: var(--accent); border: 1px solid rgba(59,158,255,0.22); }
+.badge-normal { background: rgba(122,132,153,0.1); color: var(--muted); border: 1px solid rgba(122,132,153,0.18); }
+.badge-above { background: rgba(255,95,95,0.1); color: var(--accent3); border: 1px solid rgba(255,95,95,0.25); }
+
+.card-price { font-size: 26px; font-weight: 700; font-family: var(--mono); letter-spacing: -1px; margin-bottom: 2px; }
+.card-avg { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+
+.disc-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; }
+.disc-green { color: var(--accent2); font-weight: 600; font-family: var(--mono); }
+.disc-red { color: var(--accent3); font-weight: 600; font-family: var(--mono); }
+.disc-muted { color: var(--muted); font-family: var(--mono); }
+
+.progress { height: 3px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+.progress-bar { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+.progress-bar.green { background: var(--accent2); }
+.progress-bar.blue { background: var(--accent); }
+.progress-bar.gray { background: var(--muted); }
+.progress-bar.red { background: var(--accent3); }
+
+.card-dates {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-family: var(--mono);
+  color: var(--muted);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 5px 8px;
+  margin-bottom: 8px;
+}
+.card-dates svg { width: 12px; height: 12px; flex-shrink: 0; opacity: 0.6; }
+.card-dates .date-range { color: var(--text); font-weight: 700; }
+.card-dates .date-sep { opacity: 0.4; }
+.card-dates .days-ahead { margin-left: auto; color: var(--accent); }
+.card-foot { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--muted); font-family: var(--mono); margin-bottom: 8px; }
+
+.airlines { display: flex; flex-wrap: wrap; gap: 5px; }
+.airline-pill {
+  font-size: 10px; font-family: var(--mono); font-weight: 700;
+  padding: 2px 7px; border-radius: 3px;
+  letter-spacing: 0.03em; white-space: nowrap;
+}
+.al-latam { background: rgba(220,30,75,0.12);  color: #f0607a; border: 1px solid rgba(220,30,75,0.25); }
+.al-gol   { background: rgba(255,140,0,0.12);   color: #ffaa44; border: 1px solid rgba(255,140,0,0.25); }
+.al-azul  { background: rgba(59,158,255,0.12);  color: #5badff; border: 1px solid rgba(59,158,255,0.25); }
+
+/* LOADING */
+.loading {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 60px 20px;
+  gap: 16px;
+}
+.loading-ring {
+  width: 48px; height: 48px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.loading p { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+
+/* FOOTER */
+footer {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* SCAN INDICATOR */
+.scan-bar {
+  height: 2px;
+  background: var(--border);
+  border-radius: 1px;
+  overflow: hidden;
+  margin: 4px 0 16px;
+}
+.scan-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent2), var(--accent));
+  border-radius: 1px;
+  width: 0;
+  transition: width 1.2s ease;
+}
+
+@media (max-width: 600px) {
+  header { padding: 20px 0 18px; }
+  .brand-text h1 { font-size: 15px; }
+  .grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .card-price { font-size: 20px; }
+  .stats { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 400px) {
+  .grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="radar-deco"></div>
+<div class="wrapper">
+
+<header>
+  <div class="brand">
+    <div class="brand-icon">
+      <div class="radar-sweep"></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#3b9eff" stroke-width="1.5">
+        <circle cx="12" cy="12" r="10"/>
+        <circle cx="12" cy="12" r="5"/>
+        <line x1="12" y1="2" x2="12" y2="7"/>
+        <line x1="12" y1="17" x2="12" y2="22"/>
+        <line x1="2" y1="12" x2="7" y2="12"/>
+        <line x1="17" y1="12" x2="22" y2="12"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <h1>Radar de Passagens — MT</h1>
+      <p>Monitoramento de preços · Mato Grosso</p>
+    </div>
+  </div>
+  <div class="live-chip"><div class="dot"></div><span id="status-txt">AO VIVO</span></div>
+</header>
+
+<div class="controls-bar">
+  <span class="ctrl-label">Origem</span>
+  <select id="origin-sel">
+    <option value="CGB">CGB — Cuiabá (Marechal Rondon)</option>
+    <option value="OPS" selected>OPS — Sinop</option>
+    <option value="SMT">SMT — Sorriso</option>
+  </select>
+  <span class="ctrl-label" style="margin-left:8px">Período</span>
+  <select id="period-sel">
+    <option value="30">Próximos 30 dias</option>
+    <option value="60" selected>Próximos 60 dias</option>
+    <option value="90">Próximos 90 dias</option>
+    <option value="180">Próximos 6 meses</option>
+  </select>
+  <span class="ctrl-label" style="margin-left:8px">Filtrar</span>
+  <select id="filter-sel">
+    <option value="all">Todos os destinos</option>
+    <option value="hot">🔥 Apenas promoções</option>
+    <option value="beach">Destinos de praia</option>
+    <option value="nordeste">Nordeste</option>
+    <option value="sul">Sul / Sudeste</option>
+    <option value="norte">Norte / Centro-Oeste</option>
+  </select>
+  <button class="btn-scan" id="scan-btn" onclick="runScan()">
+    <svg id="scan-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2l-7 7M2 21.5l7-7M12 2v2M12 20v2M2 12h2M20 12h2M5.6 5.6l1.4 1.4M16.9 16.9l1.5 1.5M5.6 18.4l1.4-1.4M16.9 7.1l1.5-1.5"/></svg>
+    Varrer agora
+  </button>
+</div>
+
+<div class="scan-bar"><div class="scan-bar-fill" id="scan-bar-fill"></div></div>
+
+<div class="stats" id="stats-row">
+  <div class="stat"><div class="stat-lbl">Destinos</div><div class="stat-val blue" id="s-total">—</div><div class="stat-sub">monitorados</div></div>
+  <div class="stat"><div class="stat-lbl">Em promoção</div><div class="stat-val green" id="s-promo">—</div><div class="stat-sub">agora</div></div>
+  <div class="stat"><div class="stat-lbl">Menor preço</div><div class="stat-val" id="s-min">—</div><div class="stat-sub" id="s-min-dest">—</div></div>
+  <div class="stat"><div class="stat-lbl">Maior desconto</div><div class="stat-val green" id="s-disc">—</div><div class="stat-sub" id="s-disc-dest">—</div></div>
+</div>
+
+<div class="filter-row" id="ftabs">
+  <button class="ftab active" data-f="all">Todos</button>
+  <button class="ftab" data-f="hot">🔥 Imperdíveis</button>
+  <button class="ftab" data-f="beach">Praias</button>
+  <button class="ftab" data-f="nordeste">Nordeste</button>
+  <button class="ftab" data-f="sul">Sul/Sudeste</button>
+  <button class="ftab" data-f="norte">Norte/C-Oeste</button>
+</div>
+
+<div id="main-area">
+  <div class="loading"><div class="loading-ring"></div><p>Iniciando varredura...</p></div>
+</div>
+
+<footer>
+  <span>Radar de Passagens MT © 2025 — preços simulados para fins de demonstração</span>
+  <span id="footer-time">—</span>
+</footer>
+
+</div>
+
+<script>
+const ROUTES = {
+  OPS: [
+    {code:'GRU',city:'São Paulo',sub:'Guarulhos',region:'sul',beach:false,avg:820,base:580,airlines:['LATAM','GOL','AZUL']},
+    {code:'GIG',city:'Rio de Janeiro',sub:'Galeão',region:'sul',beach:true,avg:950,base:680,airlines:['LATAM','GOL']},
+    {code:'BSB',city:'Brasília',sub:'Pres. Juscelino',region:'norte',beach:false,avg:620,base:440,airlines:['LATAM','AZUL']},
+    {code:'CGB',city:'Cuiabá',sub:'Marechal Rondon',region:'norte',beach:false,avg:310,base:220,airlines:['AZUL']},
+    {code:'SSA',city:'Salvador',sub:'Dep. L. E. Magalhães',region:'nordeste',beach:true,avg:1100,base:760,airlines:['LATAM','GOL']},
+    {code:'REC',city:'Recife',sub:'Guararapes',region:'nordeste',beach:true,avg:1150,base:780,airlines:['LATAM','GOL']},
+    {code:'FOR',city:'Fortaleza',sub:'Pinto Martins',region:'nordeste',beach:true,avg:1180,base:790,airlines:['LATAM','GOL']},
+    {code:'MCZ',city:'Maceió',sub:'Zumbi dos Palmares',region:'nordeste',beach:true,avg:1090,base:720,airlines:['LATAM']},
+    {code:'NAT',city:'Natal',sub:'Aeroporto de São Gonçalo',region:'nordeste',beach:true,avg:1200,base:810,airlines:['LATAM','GOL']},
+    {code:'BEL',city:'Belém',sub:'Val-de-Cans',region:'norte',beach:false,avg:870,base:610,airlines:['LATAM','AZUL']},
+    {code:'MAO',city:'Manaus',sub:'Eduardo Gomes',region:'norte',beach:false,avg:960,base:670,airlines:['LATAM','GOL','AZUL']},
+    {code:'CWB',city:'Curitiba',sub:'Afonso Pena',region:'sul',beach:false,avg:890,base:630,airlines:['LATAM','GOL']},
+    {code:'POA',city:'Porto Alegre',sub:'Salgado Filho',region:'sul',beach:false,avg:920,base:650,airlines:['LATAM','GOL']},
+    {code:'FLN',city:'Florianópolis',sub:'Hercílio Luz',region:'sul',beach:true,avg:900,base:640,airlines:['LATAM','AZUL']},
+    {code:'VIX',city:'Vitória',sub:'Eurico de Aguiar',region:'sul',beach:true,avg:1020,base:700,airlines:['LATAM','GOL']},
+  ],
+  CGB: [
+    {code:'GRU',city:'São Paulo',sub:'Guarulhos',region:'sul',beach:false,avg:560,base:380,airlines:['LATAM','GOL','AZUL']},
+    {code:'GIG',city:'Rio de Janeiro',sub:'Galeão',region:'sul',beach:true,avg:640,base:440,airlines:['LATAM','GOL']},
+    {code:'BSB',city:'Brasília',sub:'Pres. Juscelino',region:'norte',beach:false,avg:380,base:260,airlines:['LATAM','GOL','AZUL']},
+    {code:'OPS',city:'Sinop',sub:'Aeroporto de Sinop',region:'norte',beach:false,avg:310,base:210,airlines:['AZUL']},
+    {code:'SMT',city:'Sorriso',sub:'Aeroporto de Sorriso',region:'norte',beach:false,avg:360,base:240,airlines:['AZUL']},
+    {code:'SSA',city:'Salvador',sub:'Dep. L. E. Magalhães',region:'nordeste',beach:true,avg:720,base:490,airlines:['LATAM','GOL']},
+    {code:'REC',city:'Recife',sub:'Guararapes',region:'nordeste',beach:true,avg:760,base:510,airlines:['LATAM','GOL']},
+    {code:'FOR',city:'Fortaleza',sub:'Pinto Martins',region:'nordeste',beach:true,avg:780,base:530,airlines:['LATAM','GOL','AZUL']},
+    {code:'MCZ',city:'Maceió',sub:'Zumbi dos Palmares',region:'nordeste',beach:true,avg:710,base:480,airlines:['LATAM']},
+    {code:'NAT',city:'Natal',sub:'Aeroporto de São Gonçalo',region:'nordeste',beach:true,avg:790,base:540,airlines:['LATAM','GOL']},
+    {code:'BEL',city:'Belém',sub:'Val-de-Cans',region:'norte',beach:false,avg:580,base:390,airlines:['LATAM','AZUL']},
+    {code:'MAO',city:'Manaus',sub:'Eduardo Gomes',region:'norte',beach:false,avg:640,base:430,airlines:['LATAM','GOL','AZUL']},
+    {code:'CWB',city:'Curitiba',sub:'Afonso Pena',region:'sul',beach:false,avg:580,base:395,airlines:['LATAM','GOL']},
+    {code:'POA',city:'Porto Alegre',sub:'Salgado Filho',region:'sul',beach:false,avg:610,base:415,airlines:['LATAM','GOL']},
+    {code:'FLN',city:'Florianópolis',sub:'Hercílio Luz',region:'sul',beach:true,avg:590,base:400,airlines:['LATAM','AZUL']},
+  ],
+  SMT: [
+    {code:'GRU',city:'São Paulo',sub:'Guarulhos',region:'sul',beach:false,avg:780,base:540,airlines:['LATAM','GOL','AZUL']},
+    {code:'GIG',city:'Rio de Janeiro',sub:'Galeão',region:'sul',beach:true,avg:890,base:620,airlines:['LATAM','GOL']},
+    {code:'BSB',city:'Brasília',sub:'Pres. Juscelino',region:'norte',beach:false,avg:580,base:400,airlines:['LATAM','AZUL']},
+    {code:'CGB',city:'Cuiabá',sub:'Marechal Rondon',region:'norte',beach:false,avg:360,base:250,airlines:['AZUL']},
+    {code:'OPS',city:'Sinop',sub:'Aeroporto de Sinop',region:'norte',beach:false,avg:280,base:190,airlines:['AZUL']},
+    {code:'SSA',city:'Salvador',sub:'Dep. L. E. Magalhães',region:'nordeste',beach:true,avg:1020,base:700,airlines:['LATAM','GOL']},
+    {code:'REC',city:'Recife',sub:'Guararapes',region:'nordeste',beach:true,avg:1060,base:720,airlines:['LATAM','GOL']},
+    {code:'FOR',city:'Fortaleza',sub:'Pinto Martins',region:'nordeste',beach:true,avg:1090,base:740,airlines:['LATAM','GOL']},
+    {code:'MCZ',city:'Maceió',sub:'Zumbi dos Palmares',region:'nordeste',beach:true,avg:1000,base:680,airlines:['LATAM']},
+    {code:'BEL',city:'Belém',sub:'Val-de-Cans',region:'norte',beach:false,avg:820,base:570,airlines:['LATAM','AZUL']},
+    {code:'MAO',city:'Manaus',sub:'Eduardo Gomes',region:'norte',beach:false,avg:900,base:625,airlines:['LATAM','GOL','AZUL']},
+    {code:'CWB',city:'Curitiba',sub:'Afonso Pena',region:'sul',beach:false,avg:840,base:590,airlines:['LATAM','GOL']},
+    {code:'POA',city:'Porto Alegre',sub:'Salgado Filho',region:'sul',beach:false,avg:870,base:610,airlines:['LATAM','GOL']},
+    {code:'FLN',city:'Florianópolis',sub:'Hercílio Luz',region:'sul',beach:true,avg:850,base:595,airlines:['LATAM','AZUL']},
+  ]
+};
+
+let allData = [];
+let activeFilter = 'all';
+let scanning = false;
+
+function getPeriod() {
+  return parseInt(document.getElementById('period-sel').value) || 60;
+}
+
+function randDateRange(period) {
+  const today = new Date();
+  const minDays = 7;
+  const daysAhead = minDays + Math.floor(Math.random() * (period - minDays));
+  const outbound = new Date(today);
+  outbound.setDate(today.getDate() + daysAhead);
+  const stayDays = 3 + Math.floor(Math.random() * 8); // 3 a 10 dias de estadia
+  const inbound = new Date(outbound);
+  inbound.setDate(outbound.getDate() + stayDays);
+  const fmtDate = d => d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
+  return {
+    out: fmtDate(outbound),
+    in: fmtDate(inbound),
+    daysAhead,
+    stay: stayDays,
+    outFull: outbound.toLocaleDateString('pt-BR', {day:'2-digit', month:'short'}).replace('.',''),
+    inFull: inbound.toLocaleDateString('pt-BR', {day:'2-digit', month:'short'}).replace('.',''),
+  };
+}
+
+function dateBlock(dates) {
+  const calIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+  return `<div class="card-dates">${calIcon}<span class="date-range">${dates.outFull}</span><span class="date-sep">→</span><span class="date-range">${dates.inFull}</span><span style="opacity:.4;font-size:10px">${dates.stay}d</span><span class="days-ahead">em ${dates.daysAhead}d</span></div>`;
+}
+
+function randPrice(route) {
+  // sempre gera preço abaixo da média (entre 60% e 99% da média)
+  const pct = 0.60 + Math.random() * 0.39;
+  return Math.round(route.avg * pct);
+}
+
+function disc(price, avg) { return Math.round((avg - price) / avg * 100); }
+
+function fmt(v) { return 'R$ ' + v.toLocaleString('pt-BR'); }
+function now() { return new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+
+function badge(d) {
+  if (d >= 30) return ['🔥 IMPERDÍVEL', 'badge-fire'];
+  if (d >= 15) return ['PROMOÇÃO', 'badge-promo'];
+  return ['NORMAL', 'badge-normal'];
+}
+function cardClass(d) {
+  if (d >= 30) return 'hot';
+  if (d >= 15) return 'promo';
+  return '';
+}
+function barClass(d) {
+  if (d >= 25) return 'green';
+  if (d >= 10) return 'blue';
+  return 'gray';
+}
+
+function filtered(data) {
+  const f = activeFilter;
+  if (f === 'hot') return data.filter(d => d.disc >= 15);
+  if (f === 'beach') return data.filter(d => d.beach);
+  if (f === 'nordeste') return data.filter(d => d.region === 'nordeste');
+  if (f === 'sul') return data.filter(d => d.region === 'sul');
+  if (f === 'norte') return data.filter(d => d.region === 'norte');
+  return data;
+}
+
+function renderStats(data) {
+  document.getElementById('s-total').textContent = data.length;
+  const promos = data.filter(d => d.disc >= 15);
+  document.getElementById('s-promo').textContent = promos.length;
+  const mn = data.reduce((a,b) => a.price < b.price ? a : b);
+  const mx = data.reduce((a,b) => a.disc > b.disc ? a : b);
+  document.getElementById('s-min').textContent = fmt(mn.price);
+  document.getElementById('s-min-dest').textContent = mn.city;
+  document.getElementById('s-disc').textContent = mx.disc > 0 ? '-' + mx.disc + '%' : '0%';
+  document.getElementById('s-disc-dest').textContent = mx.city;
+}
+
+function airlinePills(airlines, cheapest) {
+  const cls = {LATAM:'al-latam', GOL:'al-gol', AZUL:'al-azul'};
+  return airlines.map(a => {
+    const isCheap = a === cheapest;
+    return `<span class="airline-pill ${cls[a]}" title="${isCheap ? 'Menor preço' : ''}">${a}${isCheap ? ' ★' : ''}</span>`;
+  }).join('');
+}
+
+function randCheapest(airlines) {
+  return airlines[Math.floor(Math.random() * airlines.length)];
+}
+
+function renderCards(data) {
+  const list = filtered(data).sort((a,b) => b.disc - a.disc);
+  if (!list.length) {
+    document.getElementById('main-area').innerHTML = '<div class="loading" style="padding:40px"><p>Nenhum destino encontrado para este filtro.</p></div>';
+    return;
+  }
+  let html = '<div class="grid">';
+  list.forEach((d, i) => {
+    const [blabel, bcls] = badge(d.disc);
+    const cc = cardClass(d.disc);
+    const bc = barClass(d.disc);
+    const barW = Math.min(100, Math.max(4, Math.abs(d.disc) * 2.5));
+    const discStr = d.disc > 0 ? '-' + d.disc + '%' : (d.disc < 0 ? '+' + Math.abs(d.disc) + '%' : '0%');
+    const discCls = d.disc > 0 ? 'disc-green' : (d.disc < 0 ? 'disc-red' : 'disc-muted');
+    html += `<div class="card ${cc}" style="animation-delay:${i * 0.04}s" onclick="window.open('https://www.google.com/travel/flights?q=passagens+${encodeURIComponent(d.city)}','_blank')">
+  <div class="card-top">
+    <div class="card-dest"><h3>${d.city}</h3><span>${d.code} · ${d.sub.length > 20 ? d.sub.substring(0,20)+'…' : d.sub}</span></div>
+    <span class="badge ${bcls}">${blabel}</span>
+  </div>
+  <div class="card-price">${fmt(d.price)}</div>
+  <div class="card-avg">Média histórica: ${fmt(d.avg)}</div>
+  ${dateBlock(d.dates)}
+  <div class="disc-row"><span class="${discCls}">${discStr} vs. média</span><span class="disc-muted">${d.time}</span></div>
+  <div class="progress"><div class="progress-bar ${bc}" style="width:${barW}%"></div></div>
+  <div class="card-foot"><span>${d.region.toUpperCase()}</span><span>${d.beach ? '🏖 praia' : '🏙 urbano'}</span></div>
+  <div class="airlines">${airlinePills(d.airlines, d.cheapest)}</div>
+</div>`;
+  });
+  html += '</div>';
+  document.getElementById('main-area').innerHTML = html;
+}
+
+function runScan() {
+  if (scanning) return;
+  scanning = true;
+  document.getElementById('status-txt').textContent = 'VARRENDO...';
+  const icon = document.getElementById('scan-icon');
+  icon.classList.add('spin');
+  const bar = document.getElementById('scan-bar-fill');
+  bar.style.width = '0';
+  setTimeout(() => { bar.style.width = '60%'; }, 50);
+  setTimeout(() => { bar.style.width = '100%'; }, 600);
+
+  const origin = document.getElementById('origin-sel').value;
+  const routes = ROUTES[origin] || ROUTES['OPS'];
+
+  setTimeout(() => {
+    allData = routes.map(r => ({
+      ...r,
+      price: randPrice(r),
+      disc: 0,
+      time: now(),
+      cheapest: randCheapest(r.airlines),
+      dates: randDateRange(getPeriod())
+    })).map(d => ({ ...d, disc: disc(d.price, d.avg) }))
+      .filter(d => d.disc >= 0); // remove preços acima da média
+
+    renderStats(allData);
+    renderCards(allData);
+    document.getElementById('footer-time').textContent = 'Última varredura: ' + now();
+    document.getElementById('status-txt').textContent = 'AO VIVO';
+    icon.classList.remove('spin');
+    scanning = false;
+    bar.style.transition = 'width 0.3s ease';
+    bar.style.width = '0';
+    setTimeout(() => { bar.style.transition = 'width 1.2s ease'; }, 350);
+  }, 1400);
+}
+
+// filter tabs
+document.getElementById('ftabs').addEventListener('click', e => {
+  const btn = e.target.closest('.ftab');
+  if (!btn) return;
+  document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  activeFilter = btn.dataset.f;
+  if (allData.length) renderCards(allData);
+});
+
+// select filter sync
+document.getElementById('filter-sel').addEventListener('change', e => {
+  activeFilter = e.target.value;
+  document.querySelectorAll('.ftab').forEach(b => b.classList.toggle('active', b.dataset.f === activeFilter));
+  if (allData.length) renderCards(allData);
+});
+
+// auto-update one card every 9s
+setInterval(() => {
+  if (scanning || !allData.length) return;
+  const origin = document.getElementById('origin-sel').value;
+  const routes = ROUTES[origin] || ROUTES['OPS'];
+  const idx = Math.floor(Math.random() * allData.length);
+  if (!routes[idx]) return;
+  const p = randPrice(routes[idx]);
+  const d = disc(p, routes[idx].avg);
+  if (d < 0) return; // descarta se por algum motivo ficou acima
+  allData[idx] = { ...allData[idx], price: p, disc: d, time: now(), cheapest: randCheapest(routes[idx].airlines), dates: randDateRange(getPeriod()) };
+  renderStats(allData);
+  renderCards(allData);
+  document.getElementById('footer-time').textContent = 'Atualizado: ' + now();
+}, 60000);
+
+document.getElementById('origin-sel').addEventListener('change', runScan);
+document.getElementById('period-sel').addEventListener('change', runScan);
+
+runScan();
+</script>
+</body>
+</html>
