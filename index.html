@@ -259,6 +259,20 @@ select:hover, select:focus { border-color: var(--accent); }
 .progress-bar.gray { background: var(--muted); }
 .progress-bar.red { background: var(--accent3); }
 
+.card-dates {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-family: var(--mono);
+  color: var(--muted);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 5px 8px;
+  margin-bottom: 8px;
+}
+.card-dates svg { width: 12px; height: 12px; flex-shrink: 0; opacity: 0.6; }
+.card-dates .date-range { color: var(--text); font-weight: 700; }
+.card-dates .date-sep { opacity: 0.4; }
+.card-dates .days-ahead { margin-left: auto; color: var(--accent); }
 .card-foot { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--muted); font-family: var(--mono); margin-bottom: 8px; }
 
 .airlines { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -359,6 +373,13 @@ footer {
     <option value="CGB">CGB — Cuiabá (Marechal Rondon)</option>
     <option value="OPS" selected>OPS — Sinop</option>
     <option value="SMT">SMT — Sorriso</option>
+  </select>
+  <span class="ctrl-label" style="margin-left:8px">Período</span>
+  <select id="period-sel">
+    <option value="30">Próximos 30 dias</option>
+    <option value="60" selected>Próximos 60 dias</option>
+    <option value="90">Próximos 90 dias</option>
+    <option value="180">Próximos 6 meses</option>
   </select>
   <span class="ctrl-label" style="margin-left:8px">Filtrar</span>
   <select id="filter-sel">
@@ -462,10 +483,39 @@ let allData = [];
 let activeFilter = 'all';
 let scanning = false;
 
+function getPeriod() {
+  return parseInt(document.getElementById('period-sel').value) || 60;
+}
+
+function randDateRange(period) {
+  const today = new Date();
+  const minDays = 7;
+  const daysAhead = minDays + Math.floor(Math.random() * (period - minDays));
+  const outbound = new Date(today);
+  outbound.setDate(today.getDate() + daysAhead);
+  const stayDays = 3 + Math.floor(Math.random() * 8); // 3 a 10 dias de estadia
+  const inbound = new Date(outbound);
+  inbound.setDate(outbound.getDate() + stayDays);
+  const fmtDate = d => d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
+  return {
+    out: fmtDate(outbound),
+    in: fmtDate(inbound),
+    daysAhead,
+    stay: stayDays,
+    outFull: outbound.toLocaleDateString('pt-BR', {day:'2-digit', month:'short'}).replace('.',''),
+    inFull: inbound.toLocaleDateString('pt-BR', {day:'2-digit', month:'short'}).replace('.',''),
+  };
+}
+
+function dateBlock(dates) {
+  const calIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+  return `<div class="card-dates">${calIcon}<span class="date-range">${dates.outFull}</span><span class="date-sep">→</span><span class="date-range">${dates.inFull}</span><span style="opacity:.4;font-size:10px">${dates.stay}d</span><span class="days-ahead">em ${dates.daysAhead}d</span></div>`;
+}
+
 function randPrice(route) {
-  const v = (Math.random() - 0.5) * 0.45;
-  const price = Math.round(route.avg * (1 + v));
-  return Math.max(Math.round(route.base * 0.60), price);
+  // sempre gera preço abaixo da média (entre 60% e 99% da média)
+  const pct = 0.60 + Math.random() * 0.39;
+  return Math.round(route.avg * pct);
 }
 
 function disc(price, avg) { return Math.round((avg - price) / avg * 100); }
@@ -476,8 +526,7 @@ function now() { return new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',m
 function badge(d) {
   if (d >= 30) return ['🔥 IMPERDÍVEL', 'badge-fire'];
   if (d >= 15) return ['PROMOÇÃO', 'badge-promo'];
-  if (d >= 0)  return ['NORMAL', 'badge-normal'];
-  return ['ACIMA DA MÉDIA', 'badge-above'];
+  return ['NORMAL', 'badge-normal'];
 }
 function cardClass(d) {
   if (d >= 30) return 'hot';
@@ -487,8 +536,7 @@ function cardClass(d) {
 function barClass(d) {
   if (d >= 25) return 'green';
   if (d >= 10) return 'blue';
-  if (d >= 0)  return 'gray';
-  return 'red';
+  return 'gray';
 }
 
 function filtered(data) {
@@ -546,6 +594,7 @@ function renderCards(data) {
   </div>
   <div class="card-price">${fmt(d.price)}</div>
   <div class="card-avg">Média histórica: ${fmt(d.avg)}</div>
+  ${dateBlock(d.dates)}
   <div class="disc-row"><span class="${discCls}">${discStr} vs. média</span><span class="disc-muted">${d.time}</span></div>
   <div class="progress"><div class="progress-bar ${bc}" style="width:${barW}%"></div></div>
   <div class="card-foot"><span>${d.region.toUpperCase()}</span><span>${d.beach ? '🏖 praia' : '🏙 urbano'}</span></div>
@@ -576,8 +625,10 @@ function runScan() {
       price: randPrice(r),
       disc: 0,
       time: now(),
-      cheapest: randCheapest(r.airlines)
-    })).map(d => ({ ...d, disc: disc(d.price, d.avg) }));
+      cheapest: randCheapest(r.airlines),
+      dates: randDateRange(getPeriod())
+    })).map(d => ({ ...d, disc: disc(d.price, d.avg) }))
+      .filter(d => d.disc >= 0); // remove preços acima da média
 
     renderStats(allData);
     renderCards(allData);
@@ -616,13 +667,16 @@ setInterval(() => {
   const idx = Math.floor(Math.random() * allData.length);
   if (!routes[idx]) return;
   const p = randPrice(routes[idx]);
-  allData[idx] = { ...allData[idx], price: p, disc: disc(p, routes[idx].avg), time: now(), cheapest: randCheapest(routes[idx].airlines) };
+  const d = disc(p, routes[idx].avg);
+  if (d < 0) return; // descarta se por algum motivo ficou acima
+  allData[idx] = { ...allData[idx], price: p, disc: d, time: now(), cheapest: randCheapest(routes[idx].airlines), dates: randDateRange(getPeriod()) };
   renderStats(allData);
   renderCards(allData);
   document.getElementById('footer-time').textContent = 'Atualizado: ' + now();
-}, 9000);
+}, 60000);
 
 document.getElementById('origin-sel').addEventListener('change', runScan);
+document.getElementById('period-sel').addEventListener('change', runScan);
 
 runScan();
 </script>
